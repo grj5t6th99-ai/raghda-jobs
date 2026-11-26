@@ -96,7 +96,7 @@ textarea{min-height:70px}
 .userbox{display:grid;gap:4px;padding:8px 4px;border-top:1px solid #ffffff22;font-size:13px;color:#ffffffcc}.userbox b{color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script>window.APP_VERSION="20261126.1155";</script>
+<script>window.APP_VERSION="20261126.1230";</script>
 <script src="config.js"></script>
 <script src="db.js"></script>
 </head>
@@ -110,7 +110,7 @@ textarea{min-height:70px}
   <div class="spacer"></div>
   <div class="userbox" id="userbox"></div>
   <div class="row"><button class="langbtn" onclick="toggleLang()" id="langbtn">العربية</button><button class="langbtn" onclick="DB.changePassword()" data-t="chpw">Change password</button><button class="langbtn" onclick="DB.logout()" data-t="logout">Sign out</button></div>
-  <p class="syncstat" id="syncstat">✓ Saved</p><p class="syncstat" id="verstat" style="margin-top:0;opacity:.6"></p>
+  <p class="syncstat" id="syncstat">✓ Saved</p>
 </aside>
 <main id="main"></main>
 </div>
@@ -181,7 +181,7 @@ function render(){
  document.getElementById('langbtn').textContent=lang==='en'?'العربية':'English';
  document.querySelectorAll('[data-t]').forEach(e=>e.textContent=t(e.dataset.t));
  const counts={enquiries:S.enquiries.filter(e=>e.status==='New').length,quotes:S.quotes.filter(q=>q.status==='Sent').length,jobs:S.jobs.filter(j=>!['Delivered','Closed'].includes(j.stage)).length,invoices:S.invoices.filter(i=>invStatus(i)!=='Paid').length,inventory:S.stock.filter(x=>x.qty<=x.reorder).length,bills:S.bills.filter(b=>billBal(b)>0.5).length,purchases:S.pos.filter(x=>x.status!=='Received').length};
- document.getElementById('userbox').innerHTML=DB.staff?`<b>${esc(DB.staff.name)}</b><span>${DB.staff.role} · ${esc(DB.me.email)}</span>`:'';
+ document.getElementById('userbox').innerHTML=DB.staff?`<b>${esc(DB.staff.name)}</b><span>${DB.staff.role} · ${esc(DB.me.email)}</span><span style="opacity:.6">${t('versionL')} ${window.APP_VERSION||'dev'}</span>`:'';
  const navAllowed=DB.navFor(NAV);if(!navAllowed.find(([k])=>k===view))view='dashboard';
  document.getElementById('nav').innerHTML=navAllowed.map(([k])=>`<button class="navbtn ${view===k?'active':''}" onclick="go('${k}')"><span>${t(k)}</span>${counts[k]?`<span class="badge">${counts[k]}</span>`:''}</button>`).join('');
  document.getElementById('main').innerHTML=VIEWS[view]();
@@ -618,7 +618,6 @@ async function checkUpdate(){if(updSeen||!/^\d/.test(window.APP_VERSION||''))ret
 function showUpdate(v){updSeen=true;const el=document.getElementById('upd');let left=20;const draw=()=>{el.innerHTML=`<span>${t('updAvail')} <b>v${esc(v)}</b></span><button class="btn sm" onclick="location.reload(true)">${t('updNow')}</button><span class="muted" style="color:#ffffff99">${left>0?t('updAuto')+' '+left+'s':''}</span>`};draw();el.classList.add('show');
  const tick=setInterval(()=>{const busy=document.getElementById('syncstat')?.classList.contains('saving')||document.getElementById('syncstat')?.classList.contains('error')||document.getElementById('modalbg')?.classList.contains('open');if(!busy)left--;else left=20;draw();if(left<=0){clearInterval(tick);location.reload(true)}},1000)}
 setTimeout(checkUpdate,15000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
-document.addEventListener('DOMContentLoaded',()=>{const v=document.getElementById('verstat');if(v)v.textContent='v'+(window.APP_VERSION||'dev')});
 // ---------------------------------------------------------------- utils
 function modal(h){document.getElementById('modal').innerHTML=h;document.getElementById('modalbg').classList.add('open')}
 function closeModal(){document.getElementById('modalbg').classList.remove('open')}
