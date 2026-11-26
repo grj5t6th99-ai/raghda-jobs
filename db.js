@@ -26,7 +26,7 @@ const DB=(()=>{
   if(!sr.data)await sb.from('settings').upsert({id:1,data:settingsBlob(),updated_by:me.id})}
  async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session){loginForm();return}me=session.user;
   if(location.hash.includes('type=invite')||location.hash.includes('type=recovery')){setPasswordForm();return}
-  const sr=await sb.from('staff').select('*').eq('id',me.id).maybeSingle();if(!sr.data||!sr.data.active){ui(`<div class="gatebox"><h2>Not authorised</h2><p>Your login (${me.email}) is not on the Al Raghda staff list yet. Ask the owner to add you.</p><button class="btn" onclick="DB.logout()">Sign out</button></div>`);return}
+  const sr=await sb.from('staff').select('*').eq('id',me.id).maybeSingle();if(sr.error||!sr.data||!sr.data.active){ui(`<div class="gatebox"><h2>Not authorised</h2><p>Your login (${me.email}) is not on the Al Raghda staff list yet. Ask the owner to add you.</p>${sr.error?`<p class="gate-msg">${sr.error.message}${sr.error.code?' ('+sr.error.code+')':''}</p>`:''}<p class="muted" style="font-size:12px">user id ${me.id}</p><button class="btn" onclick="DB.logout()">Sign out</button></div>`);return}
   staff=sr.data;try{await loadAll()}catch(e){ui(`<div class="gatebox"><h2>Could not load data</h2><p class="gate-msg">${e.message||e}</p><button class="btn" onclick="location.reload()">Retry</button></div>`);return}
   hideGate();subscribe();onReadyCb&&onReadyCb()}
  function subscribe(){if(channel)return;channel=sb.channel('raghda-live');channel.on('postgres_changes',{event:'*',schema:'public'},p=>{if(p.new&&p.new.updated_by===me.id)return;const col=Object.keys(TABLES).find(k=>TABLES[k]===p.table);
