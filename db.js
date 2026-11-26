@@ -3,6 +3,7 @@
 const DB=(()=>{
  const TABLES={customers:'customers',suppliers:'suppliers',materials:'materials',enquiries:'enquiries',quotes:'quotes',jobs:'jobs',invoices:'invoices',bills:'bills',expenses:'expenses',stock:'stock',movements:'movements',pos:'pos',accounts:'accounts',manualJournals:'manual_journals'};
  const ROLE_NAV={owner:null,accountant:['dashboard','enquiries','quotes','jobs','invoices','bills','accounts','customers','inventory','purchases','settings'],sales:['dashboard','enquiries','quotes','jobs','invoices','customers','inventory','purchases'],designer:['dashboard','enquiries','quotes','jobs','customers','inventory'],production:['dashboard','jobs','inventory','purchases'],installer:['dashboard','jobs']};
+ let needPw=false;
  let sb,me=null,staff=null,snap={},settingsSnap='',dirty=false,timer=null,syncing=false,onReadyCb=null,channel=null;
  const rowId=(col,r)=>col==='accounts'?r.code:r.id;
  function blankState(){return {materials:[],customers:[],suppliers:[],enquiries:[],quotes:[],jobs:[],invoices:[],bills:[],expenses:[],stock:[],movements:[],pos:[],manualJournals:[],
@@ -14,10 +15,10 @@ const DB=(()=>{
  function ui(html){document.getElementById('gate').innerHTML=html;document.getElementById('gate').style.display='grid';document.querySelector('.app').style.display='none'}
  function hideGate(){document.getElementById('gate').style.display='none';document.querySelector('.app').style.display=''}
  function loginForm(msg){ui(`<form class="gatebox" onsubmit="return DB.login(event)"><div class="logo" style="color:#fff;padding:0 0 10px"><i></i>Al Raghda</div><h2>Sign in</h2>${msg?`<p class="gate-msg">${msg}</p>`:''}<label>Email<input id="g_e" type="email" autocomplete="username" required></label><label>Password<input id="g_p" type="password" autocomplete="current-password" required></label><button class="btn primary" type="submit">Sign in</button><button class="btn ghost" type="button" onclick="DB.forgot()">Forgot password</button><p class="muted">Staff accounts are created by the owner. No self-registration.</p></form>`)}
- function setPasswordForm(){ui(`<form class="gatebox" onsubmit="return DB.setPassword(event)"><h2>Set your password</h2><label>New password (8+ characters)<input id="g_p" type="password" minlength="8" autocomplete="new-password" required></label><button class="btn primary" type="submit">Save and continue</button></form>`)}
+ function setPasswordForm(msg){ui(`<form class="gatebox" onsubmit="return DB.setPassword(event)"><h2>Set your password</h2>${msg?`<p class="gate-msg">${msg}</p>`:''}<label>New password (8+ characters)<input id="g_p" type="password" minlength="8" autocomplete="new-password" required></label><button class="btn primary" type="submit">Save and continue</button></form>`)}
  async function login(ev){ev.preventDefault();const {error}=await sb.auth.signInWithPassword({email:document.getElementById('g_e').value.trim(),password:document.getElementById('g_p').value});if(error)loginForm(error.message);return false}
  async function forgot(){const e=document.getElementById('g_e')?.value.trim();if(!e)return loginForm('Enter your email first, then click Forgot password.');const {error}=await sb.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname});loginForm(error?error.message:'Password reset email sent.')}
- async function setPassword(ev){ev.preventDefault();const {error}=await sb.auth.updateUser({password:document.getElementById('g_p').value});if(error)return setPasswordForm(),false;history.replaceState(null,'',location.pathname);await boot();return false}
+ async function setPassword(ev){ev.preventDefault();const {error}=await sb.auth.updateUser({password:document.getElementById('g_p').value});if(error){setPasswordForm(error.message);return false}needPw=false;history.replaceState(null,'',location.pathname);await boot();return false}
  async function loadAll(){const results=await Promise.all(Object.values(TABLES).map(tb=>sb.from(tb).select('id,data').then(r=>{if(r.error)throw r.error;return r.data})));
   const st=blankState();Object.keys(TABLES).forEach((col,i)=>{st[col]=results[i].map(r=>r.data);if(col==='accounts'&&!st[col].length)st[col]=blankState().accounts});
   const sr=await sb.from('settings').select('data').eq('id',1).maybeSingle();if(sr.error)throw sr.error;
@@ -25,7 +26,7 @@ const DB=(()=>{
   st.accounts.sort((a,b)=>a.code<b.code?-1:1);S=st;snap={};Object.keys(TABLES).forEach((col,i)=>{snap[col]={};results[i].forEach(r=>snap[col][rowId(col,r.data)]=JSON.stringify(r.data))});if(!results[Object.keys(TABLES).indexOf('accounts')].length)setTimeout(persist,50);settingsSnap=JSON.stringify(settingsBlob());
   if(!sr.data)await sb.from('settings').upsert({id:1,data:settingsBlob(),updated_by:me.id})}
  async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session){loginForm();return}me=session.user;
-  if(location.hash.includes('type=invite')||location.hash.includes('type=recovery')){setPasswordForm();return}
+  if(needPw){setPasswordForm();return}
   const sr=await sb.from('staff').select('*').eq('id',me.id).maybeSingle();if(sr.error||!sr.data||!sr.data.active){ui(`<div class="gatebox"><h2>Not authorised</h2><p>Your login (${me.email}) is not on the Al Raghda staff list yet. Ask the owner to add you.</p>${sr.error?`<p class="gate-msg">${sr.error.message}${sr.error.code?' ('+sr.error.code+')':''}</p>`:''}<p class="muted" style="font-size:12px">user id ${me.id}</p><button class="btn" onclick="DB.logout()">Sign out</button></div>`);return}
   staff=sr.data;try{await loadAll()}catch(e){ui(`<div class="gatebox"><h2>Could not load data</h2><p class="gate-msg">${e.message||e}</p><button class="btn" onclick="location.reload()">Retry</button></div>`);return}
   hideGate();subscribe();onReadyCb&&onReadyCb()}
@@ -51,6 +52,8 @@ const DB=(()=>{
  function exportJSON(){const blob=new Blob([JSON.stringify(S,null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`alraghda-backup-${new Date().toISOString().slice(0,10)}.json`;a.click()}
  async function logout(){await sb.auth.signOut();location.reload()}
  function init(cb){onReadyCb=cb;const cfg=window.RAGHDA_CONFIG||{};if(!cfg.supabaseUrl||!cfg.supabaseAnonKey){ui('<div class="gatebox"><h2>Not configured</h2><p>Add the Supabase URL and anon key to config.js.</p></div>');return}
-  sb=window.__sbMock||window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_IN'&&!staff)boot();if(ev==='SIGNED_OUT'){staff=null;loginForm()}});boot()}
- return {init,persist,login,forgot,setPassword,logout,exportJSON,get me(){return me},get staff(){return staff},get role(){return staff?staff.role:null},navFor(all){const allow=ROLE_NAV[staff?.role];return allow?all.filter(([k])=>allow.includes(k)):all},blankState,get client(){return sb}};
+  needPw=/type=(recovery|invite|signup|magiclink)/.test(location.hash+location.search);
+  sb=window.__sbMock||window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);sb.auth.onAuthStateChange((ev)=>{if(ev==='PASSWORD_RECOVERY'){needPw=true;setPasswordForm();return}if(ev==='SIGNED_IN'&&!staff)boot();if(ev==='SIGNED_OUT'){staff=null;loginForm()}});boot()}
+ function changePassword(){needPw=true;setPasswordForm()}
+ return {init,persist,login,forgot,setPassword,changePassword,logout,exportJSON,get me(){return me},get staff(){return staff},get role(){return staff?staff.role:null},navFor(all){const allow=ROLE_NAV[staff?.role];return allow?all.filter(([k])=>allow.includes(k)):all},blankState,get client(){return sb}};
 })();
