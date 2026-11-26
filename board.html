@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Al Raghda — Production board</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Public+Sans:wght@400;600;700&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#D8116A;--brand2:#48A818;--ink:#F4F4F6;--bg:#0E1017;--card:#1C1E2B;--line:#2B2E3C;--muted:#9A9CA8;--amber:#F2B134;--red:#FF5A4D}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--ink);font-family:'Public Sans','Noto Kufi Arabic',sans-serif;overflow:hidden}
+body[dir=rtl]{font-family:'Noto Kufi Arabic','Public Sans',sans-serif}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:4px solid var(--accent);border-image:linear-gradient(90deg,var(--accent) 0 70%,var(--brand2) 70% 100%) 1}
+header img{height:56px;width:56px;object-fit:contain;border-radius:10px}header .co{font:600 26px Oswald,sans-serif;letter-spacing:.5px}header .ar{color:var(--muted);font-size:14px}
+header .clock{text-align:end}header .clock b{font:600 34px Oswald,sans-serif}header .clock span{color:var(--muted);font-size:14px;display:block}
+.strip{display:flex;gap:14px;padding:12px 24px;overflow:hidden}.pill{background:var(--card);border-radius:12px;padding:10px 16px;display:flex;gap:10px;align-items:baseline}.pill b{font:600 28px Oswald,sans-serif}.pill span{color:var(--muted);font-size:13px}
+.pill.red b{color:var(--red)}.pill.amber b{color:var(--amber)}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;padding:6px 24px 24px;height:calc(100vh - 170px)}
+.col{background:#15171F;border-radius:14px;display:flex;flex-direction:column;min-height:0}
+.col h2{font:600 18px Oswald,sans-serif;margin:0;padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;letter-spacing:.5px}.col h2 small{background:var(--card);border-radius:10px;padding:2px 10px;font-size:14px;color:var(--muted)}
+.cards{overflow:auto;padding:10px;display:grid;gap:10px;align-content:start}
+.card{background:var(--card);border-radius:12px;padding:12px 14px;border-inline-start:5px solid var(--line)}
+.card.soon{border-color:var(--amber)}.card.late{border-color:var(--red)}.card.today{border-color:var(--brand2)}
+.card .id{font:600 13px Oswald,sans-serif;color:var(--muted);letter-spacing:.5px}.card .ttl{font-size:17px;font-weight:700;margin:2px 0}.card .cu{color:var(--muted);font-size:14px}
+.card .meta{display:flex;justify-content:space-between;margin-top:8px;font-size:13px;color:var(--muted)}.card .due{font-weight:700;color:var(--ink)}.card.late .due{color:var(--red)}.card.soon .due{color:var(--amber)}.card.today .due{color:var(--brand2)}
+.lang{position:fixed;bottom:14px;inset-inline-end:14px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:20px;padding:6px 14px;cursor:pointer;font-size:14px;opacity:.6}
+.err{display:grid;place-items:center;height:100vh;color:var(--muted);font-size:18px;text-align:center;padding:40px}
+@media(max-width:1100px){.board{grid-template-columns:repeat(2,1fr);height:auto}body{overflow:auto}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<div id="app"><div class="err">Loading…</div></div>
+<button class="lang" onclick="toggle()" id="langbtn">العربية</button>
+<script>
+const STAGES=['Design','Approval','Production','Installation','Delivered'];
+const T={en:{Design:'Design',Approval:'Client approval',Production:'Production',Installation:'Installation',Delivered:'Delivered',late:'Overdue',today:'Due today',soon:'Due in 2 days',open:'Open jobs',due:'Due',noKey:'This board link is not valid. Ask the owner for the link in Settings → Production board.',updated:'Updated',board:'Production board'},
+ ar:{Design:'التصميم',Approval:'موافقة العميل',Production:'الإنتاج',Installation:'التركيب',Delivered:'تم التسليم',late:'متأخر',today:'تسليم اليوم',soon:'خلال يومين',open:'أعمال مفتوحة',due:'التسليم',noKey:'رابط اللوحة غير صالح. اطلب الرابط من المالك في الإعدادات ← لوحة الإنتاج.',updated:'آخر تحديث',board:'لوحة الإنتاج'}};
+let lang=localStorage.getItem('board-lang')||'en';const t=k=>T[lang][k]||k;const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const key=new URLSearchParams(location.search).get('k')||'';const cfg=window.RAGHDA_CONFIG||{};const sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+let D=null,lastOk=null;
+function toggle(){lang=lang==='en'?'ar':'en';localStorage.setItem('board-lang',lang);render()}
+const dstr=d=>{if(!d)return '';const x=new Date(d+'T00:00:00');return x.toLocaleDateString(lang==='ar'?'ar-QA':'en-GB',{weekday:'short',day:'numeric',month:'short'})};
+function render(){document.documentElement.lang=lang;document.body.dir=lang==='ar'?'rtl':'ltr';document.getElementById('langbtn').textContent=lang==='en'?'العربية':'English';const app=document.getElementById('app');
+ if(!D){app.innerHTML=`<div class="err">${t('noKey')}</div>`;return}
+ const today=new Date();today.setHours(0,0,0,0);const dd=j=>Math.round((new Date(j.due+'T00:00:00')-today)/86400000);
+ const cls=j=>j.stage==='Delivered'?'':dd(j)<0?'late':dd(j)===0?'today':dd(j)<=2?'soon':'';
+ const open=D.jobs.filter(j=>j.stage!=='Delivered');const late=open.filter(j=>dd(j)<0).length,tod=open.filter(j=>dd(j)===0).length,soon=open.filter(j=>dd(j)>0&&dd(j)<=2).length;
+ const now=new Date();
+ app.innerHTML=`<header><div style="display:flex;gap:14px;align-items:center"><img src="${D.logo||'logo.png'}" alt=""><div><div class="co">${esc(D.company||'Al Raghda')} · ${t('board')}</div><div class="ar">${esc(D.companyAr||'')}</div></div></div><div class="clock"><b>${now.toLocaleTimeString(lang==='ar'?'ar-QA':'en-GB',{hour:'2-digit',minute:'2-digit'})}</b><span>${now.toLocaleDateString(lang==='ar'?'ar-QA':'en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span></div></header>
+ <div class="strip"><div class="pill"><b>${open.length}</b><span>${t('open')}</span></div><div class="pill red"><b>${late}</b><span>${t('late')}</span></div><div class="pill" style="--c:var(--brand2)"><b style="color:var(--brand2)">${tod}</b><span>${t('today')}</span></div><div class="pill amber"><b>${soon}</b><span>${t('soon')}</span></div><div class="pill" style="margin-inline-start:auto"><span>${t('updated')} ${lastOk?lastOk.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''}</span></div></div>
+ <div class="board">${STAGES.map(s=>{const js=D.jobs.filter(j=>j.stage===s).sort((a,b)=>(a.due||'')<(b.due||'')?-1:1);return `<div class="col"><h2>${t(s)}<small>${js.length}</small></h2><div class="cards">${js.map(j=>`<div class="card ${cls(j)}"><div class="id">${esc(j.id)} · ${esc(j.machine||'')}</div><div class="ttl">${esc(j.title||'')}</div><div class="cu">${esc(j.customer||'')}</div><div class="meta"><span>${esc(j.assigned||'')}</span><span class="due">${t('due')} ${dstr(j.due)}</span></div></div>`).join('')}</div></div>`}).join('')}</div>`}
+async function load(){try{const r=await sb.rpc('board_jobs',{p_key:key});if(r.data){D=r.data;lastOk=new Date()}else if(!D)D=null}catch(e){}render()}
+load();setInterval(load,30000);setInterval(()=>{if(D)render()},60000);
+</script>
+</body>
+</html>

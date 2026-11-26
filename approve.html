@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Al Raghda — Quotation approval</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#D8116A;--brand2:#48A818;--ink:#1C1E2B;--bg:#F3F2EE;--line:#E6E4DE;--muted:#6B6B70}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:'Public Sans','Noto Kufi Arabic',sans-serif;color:var(--ink)}
+[dir=rtl] body,body[dir=rtl]{font-family:'Noto Kufi Arabic','Public Sans',sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+.card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px #0001}
+.head{background:#0B0B0D;color:#fff;padding:18px 22px;display:flex;gap:16px;align-items:center;justify-content:space-between;border-bottom:6px solid var(--accent);border-image:linear-gradient(90deg,var(--accent) 0 70%,var(--brand2) 70% 100%) 1}
+.head img{height:72px;width:72px;object-fit:contain;border-radius:10px}.head .co{font-size:20px;font-weight:700}.head .ar{color:#ffffffaa;font-size:14px}
+.head .kind{text-align:end}.head .kind b{font-size:22px;letter-spacing:.5px}
+.body{padding:22px}
+h1{font-size:22px;margin:0 0 4px}.muted{color:var(--muted);font-size:14px}
+table{width:100%;border-collapse:collapse;margin:16px 0}th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:start;font-size:14px}th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+td.n,th.n{text-align:end;white-space:nowrap}
+.tot{display:grid;justify-content:end;gap:4px;margin:8px 0 18px;text-align:end}.tot .big{font-size:24px;font-weight:700}
+.terms{background:var(--bg);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--muted);margin:10px 0 18px}
+.btn{border:0;border-radius:10px;padding:14px 20px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn.ok{background:var(--brand2);color:#fff;flex:1}.btn.no{background:#fff;border:1px solid var(--line);color:var(--ink)}.btn.ghost{background:var(--bg);color:var(--ink);font-weight:600;font-size:14px;padding:10px 14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:16px;font-family:inherit;margin:6px 0 12px}
+.msg{border-radius:12px;padding:16px 18px;margin:14px 0;font-size:16px}.msg.ok{background:#E3F4DC;color:#1E5A10}.msg.no{background:#FBEFD2;color:#7A5300}.msg.err{background:#FBE3E0;color:#8A1F14}
+.lang{position:fixed;top:12px;inset-inline-end:12px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:6px 12px;cursor:pointer;font-size:14px;z-index:9}
+.foot{padding:14px 22px;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
+@media print{.lang,.actions,.foot{display:none}body{background:#fff}.card{box-shadow:none}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<button class="lang" onclick="toggle()" id="langbtn">العربية</button>
+<div class="wrap"><div class="card" id="card"><div class="body"><p class="muted" id="loading">Loading…</p></div></div></div>
+<script>
+const T={en:{quote:'Quotation',forC:'Prepared for',date:'Date',desc:'Description',size:'Size',qty:'Qty',amount:'Amount',sub:'Subtotal',disc:'Discount',vat:'VAT',total:'Total',install:'Installation',terms:'Terms',
+ ask:'Do you approve this quotation?',name:'Your name',note:'Comments (optional)',approve:'Approve quotation ✓',decline:'Decline',print:'Print / Save PDF',
+ thanks:'Thank you — your approval has been recorded.',next:'will contact you shortly to arrange the advance payment and start production.',declined:'You have declined this quotation. Thank you for letting us know.',
+ already:'This quotation has already been answered',closed:'This quotation is no longer open for approval.',invalid:'This link is not valid or has expired. Please contact us.',expired:'This quotation has expired. Please ask us for an updated one.',
+ approvedBy:'Approved by',declinedBy:'Declined by',on:'on',valid:'Valid until',nameReq:'Please enter your name.',sending:'Sending…',deposit:'advance to start production'},
+ ar:{quote:'عرض سعر',forC:'مقدم إلى',date:'التاريخ',desc:'الوصف',size:'المقاس',qty:'الكمية',amount:'المبلغ',sub:'المجموع الفرعي',disc:'الخصم',vat:'الضريبة',total:'الإجمالي',install:'التركيب',terms:'الشروط',
+ ask:'هل توافق على عرض السعر هذا؟',name:'اسمك',note:'ملاحظات (اختياري)',approve:'الموافقة على العرض ✓',decline:'رفض',print:'طباعة / حفظ PDF',
+ thanks:'شكراً لك — تم تسجيل موافقتك.',next:'سيتواصل معك قريباً لترتيب الدفعة المقدمة وبدء التنفيذ.',declined:'لقد رفضت عرض السعر هذا. شكراً لإعلامنا.',
+ already:'تم الرد على عرض السعر هذا مسبقاً',closed:'عرض السعر هذا لم يعد متاحاً للموافقة.',invalid:'هذا الرابط غير صالح أو منتهي. يرجى التواصل معنا.',expired:'انتهت صلاحية عرض السعر. يرجى طلب عرض محدث.',
+ approvedBy:'تمت الموافقة من',declinedBy:'تم الرفض من',on:'بتاريخ',valid:'ساري حتى',nameReq:'يرجى إدخال اسمك.',sending:'جارٍ الإرسال…',deposit:'دفعة مقدمة لبدء التنفيذ'}};
+let lang=(navigator.language||'').startsWith('ar')?'ar':'en';const t=k=>T[lang][k]||k;const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtN=n=>'QAR '+Number(n||0).toLocaleString('en-QA',{maximumFractionDigits:0});
+let D=null,done=null;const token=new URLSearchParams(location.search).get('t')||'';
+const cfg=window.RAGHDA_CONFIG||{};const sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+function toggle(){lang=lang==='en'?'ar':'en';render()}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)}
+function render(){document.documentElement.lang=lang;document.body.dir=lang==='ar'?'rtl':'ltr';document.getElementById('langbtn').textContent=lang==='en'?'العربية':'English';
+ const el=document.getElementById('card');if(!D){el.innerHTML=`<div class="body"><div class="msg err">${t('invalid')}</div></div>`;return}
+ const q=D.quote,co=D.company,cu=D.customer,s=q.snap||{rows:[],tt:{}},tt=s.tt||{};const validUntil=addDays(q.date,q.validDays||14);const expired=q.status==='Sent'&&validUntil<new Date().toISOString().slice(0,10);
+ const head=`<div class="head"><div class="row"><img src="${co.logo||'logo.png'}" alt=""><div><div class="co">${esc(co.company||'Al Raghda Advertising')}</div><div class="ar">${esc(co.companyAr||'')}</div><div class="ar">${esc(co.cr||'')} · ${esc(co.phone||'')}</div></div></div><div class="kind"><b>${t('quote')}</b><div>${esc(q.id)}</div><div class="ar">${esc(q.date)}</div></div></div>`;
+ const rows=(s.rows||[]).map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1]||'')}</td><td class="n">${esc(r[2]??'')}</td><td class="n">${esc(r[3])}</td></tr>`).join('');
+ const totals=`<div class="tot"><span>${t('sub')}: ${fmtN(tt.sub)}</span>${tt.disc?`<span>${t('disc')}: −${fmtN(tt.disc)}</span>`:''}${tt.vat?`<span>${t('vat')}: ${fmtN(tt.vat)}</span>`:''}<span class="big">${t('total')}: ${fmtN(tt.total)}</span>${co.depositPct?`<span class="muted">${co.depositPct}% ${t('deposit')} · ${fmtN((tt.total||0)*co.depositPct/100)}</span>`:''}</div>`;
+ let action='';
+ if(done==='approve'||q.status==='Approved')action=`<div class="msg ok"><b>${t('thanks')}</b><br>${esc(co.company||'Al Raghda')} ${t('next')}${q.custName?`<br><span class="muted">${t('approvedBy')} ${esc(q.custName)} ${q.custAt?t('on')+' '+esc(String(q.custAt).slice(0,10)):''}</span>`:''}</div>`;
+ else if(done==='decline'||q.status==='Rejected')action=`<div class="msg no">${t('declined')}${q.custName?`<br><span class="muted">${t('declinedBy')} ${esc(q.custName)}</span>`:''}</div>`;
+ else if(q.status!=='Sent'&&q.status!=='Draft')action=`<div class="msg no">${t('closed')}</div>`;
+ else if(expired)action=`<div class="msg no">${t('expired')}</div>`;
+ else action=`<div class="actions"><h1 style="font-size:18px;margin-top:6px">${t('ask')}</h1><label>${t('name')}<input id="nm" value="${esc(cu.name||'')}" maxlength="80"></label><label>${t('note')}<textarea id="nt" rows="2" maxlength="500"></textarea></label><div class="row"><button class="btn ok" onclick="decide('approve')">${t('approve')}</button><button class="btn no" onclick="decide('decline')">${t('decline')}</button></div><p class="muted" id="st"></p></div>`;
+ el.innerHTML=head+`<div class="body"><div class="row" style="justify-content:space-between"><div><div class="muted">${t('forC')}</div><b>${esc(cu.company||cu.name||'')}</b>${cu.company&&cu.name?`<div class="muted">${esc(cu.name)}</div>`:''}</div><div style="text-align:end"><div class="muted">${t('valid')}</div><b>${validUntil}</b></div></div>
+  <h1 style="margin-top:14px">${esc(q.title||'')}</h1>
+  <table><tr><th>${t('desc')}</th><th>${t('size')}</th><th class="n">${t('qty')}</th><th class="n">${t('amount')}</th></tr>${rows}</table>${totals}
+  ${co.terms?`<div class="terms"><b>${t('terms')}:</b> ${esc(co.terms)}</div>`:''}
+  ${action}<div class="row" style="margin-top:10px"><button class="btn ghost" onclick="window.print()">${t('print')}</button></div></div>
+  <div class="foot">${esc(co.company||'')} · ${esc(co.address||'')} · ${esc(co.email||'')}</div>`}
+async function decide(d){const nm=document.getElementById('nm').value.trim();if(!nm)return alert(t('nameReq'));const nt=document.getElementById('nt').value.trim();document.getElementById('st').textContent=t('sending');
+ const r=await sb.rpc('quote_approve',{p_token:token,p_name:nm,p_decision:d,p_note:nt});if(r.error||!r.data||r.data.error){const e=r.error?r.error.message:r.data?.error;document.getElementById('st').textContent=e==='closed'?t('already'):t('invalid');return}
+ done=d;D.quote.custName=nm;D.quote.custAt=new Date().toISOString();D.quote.status=r.data.status;render();window.scrollTo(0,document.body.scrollHeight)}
+(async()=>{try{const r=await sb.rpc('quote_public',{p_token:token});D=r.data||null}catch(e){D=null}render()})();
+</script>
+</body>
+</html>
